@@ -1,0 +1,94 @@
+<?
+
+class PuntoPago{
+
+	function crearTransaccion($trx_id,$monto, $rfc_1123_date, $medioPagoId = null){
+
+		$monto = number_format($monto,2,'.','');
+
+       	$url = ConfBase::PPUrlServicios() . '/transaccion/crear';
+        $llaveId = ConfBase::PPLlaveId();
+        $llaveSecreta = ConfBase::PPLlaveSecreta();
+		$medioPagoId = !$medioPagoId?ConfBase::PPMedioPago():$medioPagoId;
+
+		// Formato fecha : "D, d M Y H:i:s GMT" (rfc1123)
+		// usar la funcion desde la web: gmdate("D, d M Y H:i:s", time())." GMT"
+		$monto = number_format($monto, 2, '.', '');
+
+
+    	$mensaje = "transaccion/crear\n".$trx_id."\n".$monto."\n".$rfc_1123_date;
+
+    	$vars_post = '{"trx_id":'.$trx_id.',"medio_pago":"'.$medioPagoId.'"'.',"monto":'.$monto.'}';
+  		$header = array();
+  		$header[] = "Accept: application/json;";
+  		$header[] = "Accept-Charset: utf-8;";
+  		$header[] = "Accept-Language: en-us,en;q=0.5";
+  		$header[] = "Content-type: application/json";
+  		$header[] = "Fecha: ".$rfc_1123_date;
+  		$header[] = "Autorizacion: PP ".$llaveId.':'.base64_encode(hash_hmac('sha1',$mensaje,$llaveSecreta, true));
+
+	  	$ch = curl_init();
+	  	curl_setopt ($ch, CURLOPT_HTTPHEADER, $header);
+	  	curl_setopt ($ch, CURLOPT_URL, $url);
+	  	curl_setopt ($ch, CURLOPT_POST, true);
+	  	curl_setopt ($ch, CURLOPT_POSTFIELDS, $vars_post);
+	  	curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1 );
+
+	  	$response = curl_exec($ch);
+	  	curl_close ($ch);
+
+	  	$respuesta = json_decode($response);
+#var_dump($respuesta);
+#exit;
+	  	//devuelve el array devuelto por la respuesta del servicio
+	  	//{respuesta:__,token:____________,trx_id:_______,medio_pago:__,monto:____.__}
+	  	return $respuesta;
+	}
+
+	function getUrlPagos($token){
+		return ConfBase::PPUrlServicios().'/transaccion/procesar/'.$token;
+	}
+
+	function consultarEstadoTransaccion($rfc_1123_date,$trx_id,$monto,$token){
+
+		$url = ConfBase::PPUrlServicios().'/transaccion/'.$token;
+
+		$monto = number_format($monto, 2, '.', '');
+
+		$mensaje = "transaccion/traer\n".$token."\n".$trx_id."\n".$monto."\n".$rfc_1123_date;
+ 		
+	  	$header = array();
+	  	$header[] = "Accept: application/json;";
+	  	$header[] = "Accept-Charset: utf-8;";
+	  	$header[] = "Accept-Language: en-us,en;q=0.5";
+	  	$header[] = "Content-type: application/json";
+	  	$header[] = "Fecha: ".$rfc_1123_date;
+	  	$header[] = "Autorizacion: PP ".ConfBase::PPLlaveId().':'.base64_encode(hash_hmac('sha1',$mensaje,ConfBase::PPLlaveSecreta(), true));
+
+
+	  	$ch = curl_init();
+	  	curl_setopt ($ch, CURLOPT_HTTPHEADER, $header);
+	  	curl_setopt ($ch, CURLOPT_URL, $url);
+	  	curl_setopt ($ch, CURLOPT_POST, false);
+	  	curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1 );
+
+	  	$response = curl_exec ($ch);
+	  	curl_close ($ch);
+
+	  	$respuesta = json_decode($response);
+
+	  	//devuelve el array devuelto por la respuesta del servicio
+	  	//{respuesta:__,token:____________,trx_id:_______,medio_pago:__,medio_pago_descripcion:__________.
+	  	//monto:____.__,fecha_aprobacion:___-__-__T__:__:__,numero_tarjeta:____,num_cuotas:_,
+	  	//tipo_cuotas:____,valor_cuota:______,primer_vencimiento:____-__-__,numero_operacion:________,
+	  	//codigo_autorizacion:_______,tipo_pago:_______,error:___________}
+	  	return $respuesta;
+	}
+
+	function getFechaaprobacionFormato($fecha){
+		$fechaFormato = explode("T",$fecha);
+		$fechaFormato = $fechaFormato[0]." ".$fechaFormato[1];
+		return $fechaFormato;
+	}
+}
+?>
